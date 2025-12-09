@@ -619,14 +619,15 @@ extension StoreKitService{
         }
         #elseif os(macOS)
         if #available(macOS 12.0, *) {
-            // 在 macOS 上使用 URL 方式打开订阅管理页面
-            openSubscriptionManagement()
-            
-            // 订阅管理界面关闭后，刷新订阅状态
-            await loadPurchasedTransactions()
-            
-            return true
-        } else {
+            do {
+                try await AppStore.showManageSubscriptions()
+                
+                // 订阅管理界面关闭后，刷新订阅状态
+                await loadPurchasedTransactions()
+                
+                return true
+            } catch {
+                print("显示订阅管理界面失败: \(error)")
                 openSubscriptionManagement()
                 return false
             }
@@ -693,11 +694,13 @@ extension StoreKitService{
             SKStoreReviewController.requestReview()
         }
         #elseif os(macOS)
-        if #available(macOS 12.0, *) {
-            // macOS 12.0+ 使用 StoreKit 2 的 API
-            AppStore.requestReview()
+        if #available(macOS 13.0, *) {
+            // macOS 13.0+ 使用 StoreKit 2 的新 API
+            if let windowScene = NSApplication.shared.windows.first?.windowScene {
+                AppStore.requestReview(in: windowScene)
+            }
         } else if #available(macOS 10.14, *) {
-            // macOS 10.14-11.x 使用 StoreKit 1 的 API
+            // macOS 12.0+ (以及 macOS 10.14-12.x) 使用 StoreKit 1 的 API
             SKStoreReviewController.requestReview()
         }
         #endif
@@ -932,14 +935,15 @@ extension StoreKitService{
         }
         
         // 货币代码
-        if #available(iOS 16.0, macOS 13.0, *) {
+        if #available(iOS 16.0, *) {
             if let currency = transaction.currency {
                 print("   - 货币代码: \(currency)") // 货币代码（如CNY、USD）
             }
+            print("   - 环境: \(transaction.environment.rawValue)")
+        } else {
+            // Fallback on earlier versions
         }
-        if #available(iOS 16.0, macOS 13.0, *) {
-            print("   - 环境: \(transaction.environment.rawValue)") // 交易环境（sandbox/production）
-        }
+        // 交易环境（sandbox/production）
         print("   - 应用交易ID: \(transaction.appTransactionID)") // 应用级别的交易ID
         print("   - 应用Bundle ID: \(transaction.appBundleID )") // 应用的Bundle标识符
         // 应用账户Token（用于关联用户账户）
@@ -957,9 +961,11 @@ extension StoreKitService{
         //}
         
         print("   - 签名日期: \(formatter.string(from: transaction.signedDate))") // 交易签名的日期
-        if #available(iOS 17.0, macOS 14.0, *) {
-            print("   - 商店区域: \(transaction.storefront)") // 商店区域代码
-        }
+        if #available(iOS 17.0, *) {
+            print("   - 商店区域: \(transaction.storefront)")
+        } else {
+            // Fallback on earlier versions
+        } // 商店区域代码
         
         // Web订单行项目ID
         if let webOrderLineItemID = transaction.webOrderLineItemID {
@@ -978,7 +984,7 @@ extension StoreKitService{
                     print("     * 优惠ID: \(offerID)")
                 }
                 print("     * 支付模式: \(String(describing: offer.paymentMode?.rawValue))")
-                if #available(iOS 18.4, macOS 15.4, *) {
+                if #available(iOS 18.4, *) {
                     if let period = offer.period {
                         print("     * 优惠周期: \(period)")
                     }
@@ -1016,7 +1022,7 @@ extension StoreKitService{
         }
         
         // 高级商务信息
-        if #available(iOS 18.4, macOS 15.4, *) {
+        if #available(iOS 18.4, *) {
             if let advancedCommerceInfo = transaction.advancedCommerceInfo {
                 print("   - 高级商务信息: \(advancedCommerceInfo)") // 高级商务相关信息
             }
