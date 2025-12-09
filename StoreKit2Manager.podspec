@@ -20,7 +20,7 @@ Pod::Spec.new do |spec|
   spec.homepage     = "https://github.com/ppswdev/StoreKit2Manager"
   spec.license      = { :type => "MIT", :file => "LICENSE" }
   spec.author       = { "ppswdev" => "xiaopin166@gmail.com" }
-  spec.platforms = { :ios => "15.0", :macos => "12.0" }
+  spec.platforms = { :ios => "15.0" }
   
   spec.swift_version = "5.9"
   spec.source       = { :git => "https://github.com/ppswdev/StoreKit2Manager.git", :tag => "#{spec.version}" }
