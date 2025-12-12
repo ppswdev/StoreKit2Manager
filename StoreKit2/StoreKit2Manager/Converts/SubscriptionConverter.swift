@@ -14,7 +14,7 @@ public struct SubscriptionConverter {
     
     // MARK: - SubscriptionInfo
     
-    /// 将 SubscriptionInfo 转换为 Dictionary
+    /// 将 SubscriptionInfo 转换为 Dictionary（同步版本，不包含异步属性）
     /// - Parameters:
     ///   - subscription: SubscriptionInfo 对象
     ///   - product: 关联的 Product 对象（可选）
@@ -26,7 +26,8 @@ public struct SubscriptionConverter {
         dict["subscriptionGroupID"] = subscription.subscriptionGroupID
         
         // 订阅周期
-        dict["subscriptionPeriod"] = subscriptionPeriodToDictionary(subscription.subscriptionPeriod)
+        dict["subscriptionPeriodCount"] = subscription.subscriptionPeriod.value
+        dict["subscriptionPeriodUnit"] = subscriptionPeriodUnitToString(subscription.subscriptionPeriod.unit)
         
         // 介绍性优惠（如果有）
         if let introOffer = subscription.introductoryOffer {
@@ -130,7 +131,7 @@ public struct SubscriptionConverter {
     private static func subscriptionOfferToDictionary(_ offer: Product.SubscriptionOffer) -> [String: Any] {
         var dict: [String: Any] = [:]
         
-        // 优惠ID（介绍性优惠为 nil）
+        // 优惠ID（介绍性优惠为 nil，确保是字符串类型）
         if let offerID = offer.id {
             dict["id"] = offerID
         } else {
@@ -140,18 +141,19 @@ public struct SubscriptionConverter {
         // 优惠类型
         dict["type"] = subscriptionOfferTypeToString(offer.type)
         
-        // 价格信息
-        dict["displayPrice"] = offer.displayPrice
-        dict["price"] = NSDecimalNumber(decimal: offer.price).doubleValue
+        // 价格信息（确保是字符串类型）
+        dict["displayPrice"] = String(describing: offer.displayPrice)
+        dict["price"] = Double(String(format: "%.2f", NSDecimalNumber(decimal: offer.price).doubleValue)) ?? NSDecimalNumber(decimal: offer.price).doubleValue
         
         // 支付模式
         dict["paymentMode"] = paymentModeToString(offer.paymentMode)
         
         // 优惠周期
-        dict["period"] = subscriptionPeriodToDictionary(offer.period)
+        dict["periodCount"] = offer.period.value
+        dict["periodUnit"] = subscriptionPeriodUnitToString(offer.period.unit)
         
         // 周期数量
-        dict["periodCount"] = offer.periodCount
+        dict["offerPeriodCount"] = offer.periodCount
         
         return dict
     }

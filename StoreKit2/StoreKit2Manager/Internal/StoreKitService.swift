@@ -118,8 +118,7 @@ internal class StoreKitService: ObservableObject {
             if config.autoSortProducts {
                 products = sortByPrice(products)
             }
-            
-            currentState = .productsLoaded(products)
+
             self.allProducts = products
         } catch {
             currentState = .error(error)
@@ -511,50 +510,6 @@ internal class StoreKitService: ObservableObject {
                     }
                 }
             }
-            
-            // 收集结果并处理状态变化
-            for await (productId, currentState, currentRenewalInfo, expirationDate) in group {
-                guard let currentState = currentState else { continue }
-                
-                // 1. 检查订阅状态是否变化
-                let lastState = lastSubscriptionStatus[productId]
-                if lastState != currentState {
-                    // 状态变化，更新缓存并通知
-                    lastSubscriptionStatus[productId] = currentState
-                    
-                    await MainActor.run {
-                        self.currentState = .subscriptionStatusChanged(currentState)
-                    }
-                    
-                    print("📱 订阅状态变化: \(productId) - \(currentState)")
-                }
-                
-                // 2. 检查是否取消订阅（willAutoRenew 从 true 变为 false）
-                if let currentRenewalInfo = currentRenewalInfo {
-                    let lastRenewalInfo = self.lastRenewalInfo[productId]
-                    let wasAutoRenewing = lastRenewalInfo?.willAutoRenew ?? true
-                    let isAutoRenewing = currentRenewalInfo.willAutoRenew
-                    
-                    if wasAutoRenewing && !isAutoRenewing {
-                        // 用户取消了订阅（但可能仍在有效期内）
-                        await MainActor.run {
-                            self.currentState = .subscriptionCancelled(productId)
-                        }
-                        
-                        // 从 Transaction 中获取过期日期
-                        if let expirationDate = expirationDate {
-                            let formatter = DateFormatter()
-                            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                            print("⚠️ 订阅已取消: \(productId)，将在 \(formatter.string(from: expirationDate)) 过期")
-                        } else {
-                            print("⚠️ 订阅已取消: \(productId), 无过期时间")
-                        }
-                    }
-                    
-                    // 更新续订信息缓存
-                    self.lastRenewalInfo[productId] = currentRenewalInfo
-                }
-            }
         }
     }
     
@@ -749,7 +704,7 @@ extension StoreKitService{
         print("   - 产品价格: \(product.displayPrice)")
         print("   - 价格数值: \(product.price)")
         print("   - 家庭共享: \(product.isFamilyShareable)")
-        print("   - 产品JSON: \(String.init(data: product.jsonRepresentation, encoding: .utf8))")
+        //print("   - 产品JSON: \(String.init(data: product.jsonRepresentation, encoding: .utf8))")
          // 如果是订阅产品，打印订阅相关信息
         if let subscription = product.subscription {
             print("📱 订阅信息:")
@@ -808,6 +763,9 @@ extension StoreKitService{
                 }
             }
         }
+        
+        let productJSON = ProductConverter.toDictionary(product)
+        print("   - JSON表示: \(productJSON)")
     }
     
     /// 打印优惠详细信息
@@ -1045,5 +1003,8 @@ extension StoreKitService{
         
         print("════════════════════════════════════════")
         print("")
+
+        let transactionJSON = TransactionConverter.toDictionary(transaction)
+        print("   - JSON表示: \(transactionJSON)")
     }
 }
