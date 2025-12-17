@@ -27,7 +27,7 @@
 - ✅ 优惠代码兑换支持
 - ✅ 家庭共享检测
 
-## 快速开始
+## 导入方式
 
 ### 1. 在 Podfile 中添加
 
@@ -40,6 +40,16 @@ target 'YourApp' do
   pod 'StoreKit2Manager'
 end
 ```
+
+### 2.在Swift Package Manager中导入
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/ppswdev/StoreKit2Manager.git", from: "1.0.3")
+]
+```
+
+## 快速开始
 
 ### 1. 基本配置
 
