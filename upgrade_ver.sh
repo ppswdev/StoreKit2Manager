@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # StoreKit2Manager 版本自动升级脚本
-# Usage: ./update_version.sh <新版本号>
+# Usage: 
+# 授权：chmod +x upgrade_ver.sh
+# 执行：./upgrade_ver.sh <新版本号>
 
 set -e
 
@@ -17,14 +19,21 @@ CURRENT_DATE=$(date +"%Y-%m-%d")
 
 echo "开始升级到版本 $NEW_VERSION..."
 
+# 1. 手动修改CHANGELOG.md
+echo "确保手动修改CHANGELOG.md，添加版本 $NEW_VERSION 的变更内容。再执行当前脚本"
+
 # 2. 更新README.md中的版本引用
-echo "更新README.md中的版本引用..."
-# 使用sed替换SPM依赖版本
-sed -i '' "s/from: \"[0-9]\+\.[0-9]\+\.[0-9]\"/from: \"$NEW_VERSION\"/g" README.md
+ echo "更新README.md中的版本引用..."
+ # 使用更精确的匹配模式来替换版本号
+ # 匹配完整的SPM依赖行
+ ruby -pi -e "gsub(/(\.package\(url: \"https:\/\/github\.com\/ppswdev\/StoreKit2Manager\.git\",\s*from: \s*\")[0-9]+\.[0-9]+\.[0-9]+(\")/, '\\1$NEW_VERSION\\2')" README.md
+ # 检查是否替换成功
+ grep -q "from: \"$NEW_VERSION\"" README.md && echo "✓ README.md版本号已更新为 $NEW_VERSION" || echo "✗ README.md版本号更新失败"
 
 # 3. 更新podspec版本
 echo "更新StoreKit2Manager.podspec版本..."
-sed -i '' "s/version.*=.*'[0-9]\+\.[0-9]\+\.[0-9]'/version          = '$NEW_VERSION'/g" StoreKit2Manager.podspec
+# 使用更精确的匹配模式，保持原有空格格式
+ruby -pi -e "gsub(/spec.version\s*=\s*\"[0-9]+\.[0-9]+\.[0-9]+\"/, 'spec.version      = \"$NEW_VERSION\"')" StoreKit2Manager.podspec
 
 # 4. 验证Swift构建
 echo "验证Swift构建..."
@@ -37,10 +46,10 @@ pod lib lint StoreKit2Manager.podspec --allow-warnings
 # 6. 提交更改
 echo "提交更改..."
 git add .
-git commit -m "升级到$NEW_VERSION版本"
+git commit -m "升级到${NEW_VERSION}版本"
 
 # 7. 创建版本标签
-echo "创建版本标签 $NEW_VERSION..."
+echo "创建版本标签 ${NEW_VERSION}..."
 git tag $NEW_VERSION
 
 # 8. 推送代码和标签

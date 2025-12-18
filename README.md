@@ -45,7 +45,7 @@ end
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ppswdev/StoreKit2Manager.git", from: "1.0.6")
+    .package(url: "https://github.com/ppswdev/StoreKit2Manager.git", from: "1.0.9")
 ]
 ```
 
