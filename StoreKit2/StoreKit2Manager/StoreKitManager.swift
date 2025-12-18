@@ -322,7 +322,8 @@ public class StoreKit2Manager {
     }
     
     /// 恢复购买
-    public func restorePurchases() async {
+    /// - Throws: StoreKit2Error.restorePurchasesFailed 如果恢复失败
+    public func restorePurchases() async throws {
         await service?.restorePurchases()
     }
     
@@ -384,7 +385,10 @@ public class StoreKit2Manager {
         do {
             // 获取订阅状态
             let statuses = try await subscription.status
-            guard let currentStatus = statuses.first else {
+            guard let currentStatus = statuses.first(where: { $0.state == .subscribed }) else {
+                // 如果没有找到 .subscribed 状态，打印所有状态用于调试
+                print("❌ [isSubscribedButFreeTrailCancelled] 未找到 .subscribed 状态: \(productId)")
+                print("   当前状态列表: \(statuses.map { "\($0.state)" })")
                 return false
             }
             
@@ -434,13 +438,11 @@ public class StoreKit2Manager {
             }
         } else {
             // iOS 15.0 - iOS 17.1 使用已废弃的属性
-            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-                if let offerType = transaction.offerType,
-                   let paymentMode = transaction.offerPaymentModeStringRepresentation {
-                    if offerType == .introductory,
-                       paymentMode == "freeTrial" {
-                        return true
-                    }
+            if let offerType = transaction.offerType,
+               let paymentMode = transaction.offerPaymentModeStringRepresentation {
+                if offerType == .introductory,
+                   paymentMode == "freeTrial" {
+                    return true
                 }
             }
         }
@@ -503,7 +505,6 @@ public class StoreKit2Manager {
     /// - Parameter productId: 产品ID
     /// - Returns: 续订信息，如果不是订阅产品或获取失败则返回 nil
     /// - Note: RenewalInfo 包含 willAutoRenew（是否自动续订）、expirationDate（过期日期）、renewalDate（续订日期）等信息
-    @available(iOS 15.0, *)
     public func getRenewalInfo(for productId: String) async -> RenewalInfo? {
         guard let product = allProducts.first(where: { $0.id == productId }),
               let subscription = product.subscription else {
@@ -511,12 +512,10 @@ public class StoreKit2Manager {
         }
         
         do {
-            if #available(iOS 15.0, macOS 12.0, *) {
-                let statuses = try await subscription.status
-                if let status = statuses.first,
-                   case .verified(let renewalInfo) = status.renewalInfo {
-                    return renewalInfo
-                }
+            let statuses = try await subscription.status
+            if let status = statuses.first,
+               case .verified(let renewalInfo) = status.renewalInfo {
+                return renewalInfo
             }
         } catch {
             print("获取续订信息失败: \(error)")
@@ -539,18 +538,23 @@ public class StoreKit2Manager {
     }
     
     /// 显示优惠代码兑换界面（iOS 16.0+）
+    /// - Throws: StoreKit2Error 如果显示失败
     /// - Note: 兑换后的交易会通过 Transaction.updates 发出
     @MainActor
-    @available(iOS 16.0, visionOS 1.0, *)
-    @available(macOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(tvOS, unavailable)
     public func presentOfferCodeRedeemSheet() async -> Bool {
         guard let service = service else {
             return false
         }
-        await service.presentOfferCodeRedeemSheet()
-        return true
+        if #available(iOS 16.0, visionOS 1.0, *){
+            do {
+                try await service.presentOfferCodeRedeemSheet()
+                return true
+            } catch {
+                return false
+            }
+        } else {
+            return false
+        }
     }
     
  
