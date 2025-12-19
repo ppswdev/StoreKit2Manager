@@ -29,7 +29,7 @@ public struct TransactionConverter {
         } else {
             dict["price"] = 0.00
         }
-        // 货币代码（iOS 16.0+ / macOS 13.0+）
+        // 货币代码（iOS 16.0+，macOS 13.0+）
         if #available(iOS 16.0, macOS 13.0, *) {
             if let currency = transaction.currency {
                 // 确保是字符串类型
@@ -53,7 +53,7 @@ public struct TransactionConverter {
         // 购买数量
         dict["purchasedQuantity"] = transaction.purchasedQuantity
         
-        // 购买原因（iOS 17.0+）
+        // 交易原因（iOS 17.0+，表示购买还是续订）
         if #available(iOS 17.0, macOS 14.0, *) {
             dict["purchaseReason"] = transactionReasonToString(transaction.reason)
         } else {
@@ -511,13 +511,7 @@ public struct TransactionConverter {
             
             // 获取订阅状态
             let statuses = try await subscription.status
-            guard let currentStatus = statuses.first else {
-                return false
-            }
-            
-            // 首先检查订阅状态是否为 .subscribed（有效订阅）
-            // 只有在有效订阅期间内才需要判断
-            guard currentStatus.state == .subscribed else {
+            guard let currentStatus = statuses.first(where: { $0.state == .subscribed }) else {
                 return false
             }
             
@@ -535,6 +529,9 @@ public struct TransactionConverter {
             // 检查是否在免费试用期
             var isFreeTrial = false
             if case .verified(let transaction) = currentStatus.transaction {
+                if(transaction.productID != productID){
+                    return false;
+                }
                 isFreeTrial = isFreeTrialTransaction(transaction)
             }
             

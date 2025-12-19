@@ -557,15 +557,13 @@ internal final class StoreKitService: ObservableObject,@unchecked Sendable {
             }
         } else {
             // iOS 15.0 - iOS 17.1 使用已废弃的属性
-            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-                if let offerType = transaction.offerType,
-                   let paymentMode = transaction.offerPaymentModeStringRepresentation {
-                    // 检查是否是介绍性优惠且支付模式是免费试用
-                    // 注意：paymentMode 是字符串类型，需要与 "freeTrial" 比较
-                    if offerType == .introductory,
-                       paymentMode == "freeTrial" {
-                        return true
-                    }
+            if let offerType = transaction.offerType,
+               let paymentMode = transaction.offerPaymentModeStringRepresentation {
+                // 检查是否是介绍性优惠且支付模式是免费试用
+                // 注意：paymentMode 是字符串类型，需要与 "freeTrial" 比较
+                if offerType == .introductory,
+                   paymentMode == "freeTrial" {
+                    return true
                 }
             }
         }
@@ -951,9 +949,14 @@ extension StoreKitService{
             return false
         }
         #elseif os(macOS)
-        // macOS 平台使用 URL 方式打开订阅管理界面
-        openSubscriptionManagement()
-        return true
+        if #available(macOS 12.0, *) {
+            // macOS使用不同的API打开订阅管理
+            openSubscriptionManagement()
+            return true
+        } else {
+            openSubscriptionManagement()
+            return false
+        }
         #else
         openSubscriptionManagement()
         return false
@@ -961,13 +964,14 @@ extension StoreKitService{
     }
     
     /// 显示优惠代码兑换界面（iOS 16.0+）
+    /// - Throws: StoreKit2Error 如果显示失败
     /// - Note: 兑换后的交易会通过 Transaction.updates 发出
     @MainActor
     @available(iOS 16.0, visionOS 1.0, *)
     @available(macOS, unavailable)
     @available(watchOS, unavailable)
     @available(tvOS, unavailable)
-    func presentOfferCodeRedeemSheet() async {
+    func presentOfferCodeRedeemSheet() async throws {
         #if os(iOS)
         // 获取当前的 windowScene
         let windowScene = UIApplication.shared.connectedScenes
@@ -987,6 +991,8 @@ extension StoreKitService{
         } catch {
             currentState = .error("StoreKitService.presentOfferCodeRedeemSheet", error.localizedDescription, String(describing: error))
         }
+        #else
+        currentState = .error("StoreKitService.presentOfferCodeRedeemSheet", "Unsupported platform", "Offer code redeem sheet is not supported on this platform")
         #endif
     }
     
@@ -1015,8 +1021,12 @@ extension StoreKitService{
             }
         }
         #elseif os(macOS)
-        if #available(macOS 10.14, *) {
-            // macOS 使用 StoreKit 1 的 API
+        if #available(macOS 13.0, *) {
+            // macOS 13.0+ 使用 StoreKit 2 的新 API
+            // 注意：macOS的NSWindow没有windowScene属性
+            SKStoreReviewController.requestReview()
+        } else if #available(macOS 10.14, *) {
+            // macOS 12.0+ (以及 macOS 10.14-12.x) 使用 StoreKit 1 的 API
             SKStoreReviewController.requestReview()
         }
         #endif
@@ -1358,9 +1368,7 @@ extension StoreKitService{
         //}
         
         // Debug描述
-        if #available(iOS 15.0, macOS 12.0, *) {
-            print("   - Debug描述: \(transaction.debugDescription)") // 调试用的描述信息
-        }
+        print("   - Debug描述: \(transaction.debugDescription)") // 调试用的描述信息
         print("")
         
         

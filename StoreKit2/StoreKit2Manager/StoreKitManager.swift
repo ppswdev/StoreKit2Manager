@@ -315,14 +315,15 @@ public class StoreKit2Manager {
     /// - Parameter product: 产品对象
     public func purchase(_ product: Product) async {
         guard let service = service else {
-            currentState = .error("StoreKit2Manager.purchase","Service not started","服务未启动，请先调用 configure 方法")    
+            currentState = .error("StoreKit2Manager.purchase","Service not started","服务未启动，请先调用 configure 方法")
             return
         }
         await service.purchase(product)
     }
     
     /// 恢复购买
-    public func restorePurchases() async {
+    /// - Throws: StoreKit2Error.restorePurchasesFailed 如果恢复失败
+    public func restorePurchases() async throws {
         await service?.restorePurchases()
     }
     
@@ -391,12 +392,6 @@ public class StoreKit2Manager {
                 return false
             }
             
-            // 首先检查订阅状态是否为 .subscribed（有效订阅）
-            // 只有在有效订阅期间内才需要判断
-            guard currentStatus.state == .subscribed else {
-                return false
-            }
-            
             // 检查是否已取消（willAutoRenew == false）
             var isCancelled = false
             if case .verified(let renewalInfo) = currentStatus.renewalInfo {
@@ -411,6 +406,9 @@ public class StoreKit2Manager {
             // 检查是否在免费试用期
             var isFreeTrial = false
             if case .verified(let transaction) = currentStatus.transaction {
+                if(transaction.productID != productId){
+                    return false;
+                }
                 isFreeTrial = isFreeTrialTransaction(transaction)
             }
             
@@ -437,13 +435,11 @@ public class StoreKit2Manager {
             }
         } else {
             // iOS 15.0 - iOS 17.1 使用已废弃的属性
-            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-                if let offerType = transaction.offerType,
-                   let paymentMode = transaction.offerPaymentModeStringRepresentation {
-                    if offerType == .introductory,
-                       paymentMode == "freeTrial" {
-                        return true
-                    }
+            if let offerType = transaction.offerType,
+               let paymentMode = transaction.offerPaymentModeStringRepresentation {
+                if offerType == .introductory,
+                   paymentMode == "freeTrial" {
+                    return true
                 }
             }
         }
@@ -506,7 +502,6 @@ public class StoreKit2Manager {
     /// - Parameter productId: 产品ID
     /// - Returns: 续订信息，如果不是订阅产品或获取失败则返回 nil
     /// - Note: RenewalInfo 包含 willAutoRenew（是否自动续订）、expirationDate（过期日期）、renewalDate（续订日期）等信息
-    @available(iOS 15.0, *)
     public func getRenewalInfo(for productId: String) async -> RenewalInfo? {
         guard let product = allProducts.first(where: { $0.id == productId }),
               let subscription = product.subscription else {
@@ -514,12 +509,10 @@ public class StoreKit2Manager {
         }
         
         do {
-            if #available(iOS 15.0, macOS 12.0, *) {
-                let statuses = try await subscription.status
-                if let status = statuses.first,
-                   case .verified(let renewalInfo) = status.renewalInfo {
-                    return renewalInfo
-                }
+            let statuses = try await subscription.status
+            if let status = statuses.first,
+               case .verified(let renewalInfo) = status.renewalInfo {
+                return renewalInfo
             }
         } catch {
             print("获取续订信息失败: \(error)")
@@ -542,18 +535,24 @@ public class StoreKit2Manager {
     }
     
     /// 显示优惠代码兑换界面（iOS 16.0+）
+    /// - Throws: StoreKit2Error 如果显示失败
     /// - Note: 兑换后的交易会通过 Transaction.updates 发出
     @MainActor
-    @available(iOS 16.0, visionOS 1.0, *)
-    @available(macOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(tvOS, unavailable)
+    @available(macOS, unavailable, message: "presentOfferCodeRedeemSheet() is unavailable in macOS")
     public func presentOfferCodeRedeemSheet() async -> Bool {
         guard let service = service else {
             return false
         }
-        await service.presentOfferCodeRedeemSheet()
-        return true
+        if #available(iOS 16.0, visionOS 1.0, *){
+            do {
+                try await service.presentOfferCodeRedeemSheet()
+                return true
+            } catch {
+                return false
+            }
+        } else {
+            return false
+        }
     }
     
  
