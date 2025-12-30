@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "StoreKit2Manager"
-  spec.version      = "1.1.1"
+  spec.version      = "1.1.2"
   spec.summary      = "一个简洁、易用的 StoreKit2 封装库，提供统一的接口来管理应用内购买"
   spec.description  = <<-DESC
   StoreKit2Manager 是一个基于 StoreKit 2 的封装库，提供了简洁易用的 API 来管理应用内购买。
